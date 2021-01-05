@@ -20,14 +20,14 @@ Please make sure that pass is installed & configured.
 To be able to use the OTA update, the following two entries
 in the platformio.ini must be changed.
 
-        ; Over the air settings
-        upload_protocol = espota
-        upload_port = 192.168.1.108
+    ; Over the air settings
+    upload_protocol = espota
+    upload_port = 192.168.1.108
 
 Additionally the entry "" must be commented out:
 
-        ; initial setup via
-        upload_protocol = esptool
+    ; initial setup via
+    upload_protocol = esptool
 
 ## How to build this project?
 
