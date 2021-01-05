@@ -2,6 +2,10 @@
 
 Skeleton project for new ESP8266 projects.
 
+## Arduino Example Code
+
+This code will only blink the internal blue LED of a ESP8266 (wemos d1 or similiar).
+
 ## Requirements
 
 This project use pass for storing user credentials.
