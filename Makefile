@@ -1,11 +1,12 @@
-#SHELL := /bin/bash
+SHELL := /bin/bash
 #PATH := /usr/local/bin:$(PATH)
+
 
 all:
 	platformio -f -c vim run
 
 upload:
-	platformio -f -c vim run --target upload monitor
+	source ./bin/set_my_vars.sh;platformio -f -c vim run --target upload --target monitor
 
 clean:
 	platformio -f -c vim run --target clean
@@ -18,3 +19,9 @@ uploadfs:
 
 update:
 	platformio -f -c vim update
+
+erase:
+	platformio -f -c vim run --target erase
+
+dump:
+	platformio -f -c vim run --target envdump

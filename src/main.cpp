@@ -10,69 +10,101 @@
 #include <ArduinoOTA.h>
 #include <PubSubClient.h>
 
+#define ST(A) #A
+#define STR(A) ST(A)
 
-#ifndef STASSID
-#define STASSID "your-ssid"
-#define STAPSK "your-password"
+#ifdef OTA_PASSWORD
+    #pragma message STR(OTA_PASSWORD)
+#else
+    #warning "OTA_PASSWORD NOT defined"
 #endif
 
-const char *ssid = STASSID;
-const char *password = STAPSK;
+#ifdef WIFI_SSID
+    #pragma message STR(WIFI_SSID)
+#else
+    #warning "WIFI_SSID NOT defined"
+#endif
+
+#ifdef WIFI_PASSWORD
+    #pragma message STR(WIFI_PASSWORD)
+#else
+    #warning "WIFI_PASSWORD NOT defined"
+#endif
+
+#ifdef MQTT_SERVER
+    #pragma message STR(MQTT_SERVER)
+#else
+    #warning "MQTT_SERVER NOT defined"
+#endif
+
+#ifdef MQTT_PASSWORD
+    #pragma message STR(MQTT_PASSWORD)
+#else
+    #warning "MQTT_PASSWORD NOT defined"
+#endif
+
+#ifdef MQTT_PORT
+    #pragma message STR(MQTT_PORT)
+#else
+    #warning "MQTT_PORT NOT defined"
+#endif
+
+#ifdef ESP_HOSTNAME
+    #pragma message STR(ESP_HOSTNAME)
+#else
+    #warning "ESP_HOSTNAME NOT defined"
+#endif
 
 void setup()
 {
 
 	Serial.begin(115200);
-	Serial.println("Booting");
+	Serial.println(">> Booting");
+	Serial.print(">> git rev: ");
+    Serial.println(GIT_REV);
+	Serial.print(">> ESP_HOSTNAME: ");
+    Serial.println(ESP_HOSTNAME);
+    Serial.print(">> MQTT_PORT: ");
+    Serial.println(MQTT_PORT);
+    Serial.print(">> WIFI SSID: ");
+    Serial.println(WIFI_SSID);
 	WiFi.mode(WIFI_STA);
-	WiFi.begin(ssid, password);
+	WiFi.begin(WIFI_SSID,WIFI_PASSWORD);
 
-	while (WiFi.waitForConnectResult() != WL_CONNECTED)
-	{
-
-		Serial.println("Connection Failed! Rebooting...");
+	while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+		Serial.print("Connection to ");
+        Serial.print(WIFI_SSID);
+        Serial.println(" failed! Rebooting...");
 		delay(5000);
 		ESP.restart();
 	}
 
-	// Port defaults to 8266
 	// ArduinoOTA.setPort(8266);
-	// Hostname defaults to esp8266-[ChipID]
-	// ArduinoOTA.setHostname("myesp8266");
-	// No authentication by default
-	// ArduinoOTA.setPassword("admin");
-	// Password can be set with it's md5 value as well
-	// MD5(admin) = 21232f297a57a5a743894a0e4a801fc3
-	// ArduinoOTA.setPasswordHash("21232f297a57a5a743894a0e4a801fc3");
-
+	ArduinoOTA.setHostname(ESP_HOSTNAME);
+	ArduinoOTA.setPassword(OTA_PASSWORD);
 	ArduinoOTA.onStart([]()
 	{
 		String type;
-
 		if (ArduinoOTA.getCommand() == U_FLASH) {
 			type = "sketch";
 		}
 		else {
 		    type = "filesystem"; // U_FS
 		}
-
 		// NOTE: if updating FS this would be the place to unmount FS using FS.end()
 		Serial.println("Start updating " + type);
 	});
 
-	ArduinoOTA.onEnd([]()
-	{
+	ArduinoOTA.onEnd([]() {
 		Serial.println("\nEnd");
 	});
 
-	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total)
-	{
+	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
 		Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
 	});
 
 	ArduinoOTA.onError([](ota_error_t error)
 	{
-
 		Serial.printf("Error[%u]: ", error);
 		if (error == OTA_AUTH_ERROR) {
 			Serial.println("Auth Failed");
@@ -92,20 +124,19 @@ void setup()
 		} });
 
 	ArduinoOTA.begin();
-	Serial.println("Ready");
-	Serial.print("IP address: ");
+	Serial.println(">> Ready");
+	Serial.print(">> IP address: ");
 	Serial.println(WiFi.localIP());
 
     // initialize digital pin LED_BUILTIN as an output.
     pinMode(LED_BUILTIN, OUTPUT);
-
 }
 
 void loop()
 {
 	ArduinoOTA.handle();                // handle over the air updates
     digitalWrite(LED_BUILTIN, HIGH);    // turn the LED on
-    delay(500);                         // wait for half a second
+    delay(1000);                        // wait for half a second
     digitalWrite(LED_BUILTIN, LOW);     // turn the LED off
-    delay(500);                         // wait for half a second
+    delay(1000);                        // wait for half a second
 }
