@@ -1,8 +1,6 @@
 #!/usr/bin/env sh
 #
-# $Id: template.sh,v 1.2 2020/10/19 17:36:15 murdoc Exp $
-#
-# Description
+# Description: set up the OTA password
 #
 # Author: patrick@kirchhoffs.de
 #
@@ -17,6 +15,5 @@
 #               a command fail
 
 set -euo pipefail
-
 export ESP_OTA_PASSWORD="$(pass arduino/ota)"
 
