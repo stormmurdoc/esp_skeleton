@@ -20,6 +20,8 @@ void setup()
     Serial.println(GIT_REV);
 	Serial.print(">> ESP_HOSTNAME: ");
     Serial.println(ESP_HOSTNAME);
+    Serial.print(">> MQTT_SERVER: ");
+    Serial.println(MQTT_SERVER);
     Serial.print(">> MQTT_PORT: ");
     Serial.println(MQTT_PORT);
     Serial.print(">> WIFI SSID: ");
