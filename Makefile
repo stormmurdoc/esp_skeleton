@@ -1,4 +1,4 @@
-SHELL := /bin/bash
+#SHELL := /bin/bash
 #PATH := /usr/local/bin:$(PATH)
 
 

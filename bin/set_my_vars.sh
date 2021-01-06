@@ -2,7 +2,7 @@
 #
 # Description: set up the OTA password
 #
-# Author: patrick@kirchhoffs.de
+# Author: murdoc@storm-clan.de
 #
 # Configuration file: none
 #
