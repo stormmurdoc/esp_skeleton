@@ -15,5 +15,17 @@
 #               a command fail
 
 set -euo pipefail
-export ESP_OTA_PASSWORD="$(pass arduino/ota)"
 
+OUT="$(pass arduino/ota)"
+
+if [ $? -eq 0 ];then
+    if [ ! -z "$OUT" ];then
+        export ESP_OTA_PASSWORD="$OUT"
+    else
+        echo "--- Error: could not retriew the password from pass! ---"
+        exit 1
+    fi
+else
+    echo "--- Error launching pass - maybe not installed? ---"
+    exit 2
+fi
