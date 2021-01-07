@@ -202,9 +202,9 @@ void reconnect() {
     if (client.connect("ESP8266Client")) {
       Serial.println("connected");
       // Subscribe
-      char tmp2;
-      tmp2=MQTT_TOPIC;
-      client.subscribe(tmp2);
+      const char tmp2[];
+      tmp2[]=MQTT_TOPIC + "/out";
+      client.subscribe(tmp2[]);
     } else {
       Serial.print("failed, rc=");
       Serial.print(client.state());
