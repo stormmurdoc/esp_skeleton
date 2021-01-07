@@ -6,26 +6,76 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
+#include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <PubSubClient.h>
+#include <time.h>
 #include <macros.h>
+#include <functions.h>
 
-void setup()
+#define ST(A) #A
+#define STR(A) ST(A)
+
+#ifdef OTA_PASSWORD
+    #pragma message STR(OTA_PASSWORD)
+#else
+    #warning "OTA_PASSWORD NOT defined"
+#endif
+
+#ifdef WIFI_SSID
+    #pragma message STR(WIFI_SSID)
+#else
+    #warning "WIFI_SSID NOT defined"
+#endif
+
+#ifdef WIFI_PASSWORD
+    #pragma message STR(WIFI_PASSWORD)
+#else
+    #warning "WIFI_PASSWORD NOT defined"
+#endif
+
+#ifdef MQTT_SERVER
+    #pragma message STR(MQTT_SERVER)
+#else
+    #warning "MQTT_SERVER NOT defined"
+#endif
+
+#ifdef MQTT_PASSWORD
+    #pragma message STR(MQTT_PASSWORD)
+#else
+    #warning "MQTT_PASSWORD NOT defined"
+#endif
+
+#ifdef MQTT_PORT
+    #pragma message STR(MQTT_PORT)
+#else
+    #warning "MQTT_PORT NOT defined"
+#endif
+
+#ifdef ESP_HOSTNAME
+    #pragma message STR(ESP_HOSTNAME)
+#else
+    #warning "ESP_HOSTNAME NOT defined"
+#endif
+
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+char* clientId = ESP_HOSTNAME;
+
+long lastMsg = 0;
+char msg[50];
+int value = 0;
+
+char tmp[50];
+char time_value[20];
+
+// LED Pin
+const int ledPin = 4;
+
+void setup_wifi()
 {
-
-	Serial.begin(115200);
-	Serial.println(">> Booting");
-	Serial.print(">> git rev: ");
-    Serial.println(GIT_REV);
-	Serial.print(">> ESP_HOSTNAME: ");
-    Serial.println(ESP_HOSTNAME);
-    Serial.print(">> MQTT_SERVER: ");
-    Serial.println(MQTT_SERVER);
-    Serial.print(">> MQTT_PORT: ");
-    Serial.println(MQTT_PORT);
-    Serial.print(">> WIFI SSID: ");
-    Serial.println(WIFI_SSID);
 	WiFi.mode(WIFI_STA);
 	WiFi.begin(WIFI_SSID,WIFI_PASSWORD);
 
@@ -36,8 +86,11 @@ void setup()
 		delay(5000);
 		ESP.restart();
 	}
+}
 
-	// ArduinoOTA.setPort(8266);
+void setup_ota()
+{
+    // ArduinoOTA.setPort(8266);
 	ArduinoOTA.setHostname(ESP_HOSTNAME);
 	ArduinoOTA.setPassword(OTA_PASSWORD);
 	ArduinoOTA.onStart([]()
@@ -85,14 +138,93 @@ void setup()
 	Serial.println(">> Ready");
 	Serial.print(">> IP address: ");
 	Serial.println(WiFi.localIP());
+}
 
+void callback(char* topic, byte* message, unsigned int length) {
+  Serial.print(">> Message arrived on topic: ");
+  Serial.print(topic);
+  Serial.print(". Message: ");
+  String messageTemp;
+
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)message[i]);
+    messageTemp += (char)message[i];
+  }
+  Serial.println();
+
+  // Feel free to add more if statements to control more GPIOs with MQTT
+
+  // If a message is received on the topic esp32/output, you check if the message is either "on" or "off".
+  // Changes the output state according to the message
+  if (String(topic) == "esp32/output") {
+    Serial.print("Changing output to ");
+    if(messageTemp == "on"){
+      Serial.println("on");
+      digitalWrite(ledPin, HIGH);
+    }
+    else if(messageTemp == "off"){
+      Serial.println("off");
+      digitalWrite(ledPin, LOW);
+    }
+  }
+}
+
+void reconnect() {
+  // Loop until we're reconnected
+  while (!client.connected()) {
+    Serial.print("Attempting MQTT connection...");
+    // Attempt to connect
+    if (client.connect("ESP8266Client")) {
+      Serial.println("connected");
+      // Subscribe
+      client.subscribe("esp32/output");
+    } else {
+      Serial.print("failed, rc=");
+      Serial.print(client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
+void setup()
+{
+    printDevInfos();
+    setup_wifi();
+    setup_ota();
+
+    /* setup mqtt_server */
+    client.setServer(MQTT_SERVER, MQTT_PORT);
+    if (client.connect(clientId , ESP_HOSTNAME, MQTT_PASSWORD)) {
+        Serial.println(">> MQTT connected");
+    }
+    client.setCallback(callback);
     // initialize digital pin LED_BUILTIN as an output.
     pinMode(LED_BUILTIN, OUTPUT);
 }
 
+
+/* main proc */
 void loop()
 {
+    long now = millis();
+
+    if (now - lastMsg > 5000) {
+        lastMsg = now;
+        Serial.print(now);
+        Serial.println(">> alive");
+        client.publish("esp32/alive", "yes");
+        long rssi = WiFi.RSSI();
+        itoa(rssi,tmp,10);
+        client.publish("esp32/rssi", tmp);
+        client.publish("esp32/time", time_value);
+    }
+
 	ArduinoOTA.handle();                // handle over the air updates
+    if (!client.connected()) {
+        reconnect();
+    }
+    client.loop();
     digitalWrite(LED_BUILTIN, HIGH);    // turn the LED on
     delay(1000);                        // wait for half a second
     digitalWrite(LED_BUILTIN, LOW);     // turn the LED off
