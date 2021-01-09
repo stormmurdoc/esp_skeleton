@@ -69,14 +69,16 @@
 WiFiClient espClient;
 PubSubClient client(espClient);
 char* clientId = ESP_HOSTNAME;
-
 long lastMsg = 0;
 char msg[50];
 int value = 0;
 int lastLEDState = 0;
-
 char tmp[50];
 char time_value[20];
+char cMQTT_TOPIC[20];
+char MQTT_TOPIC_RSSI[20];
+char MQTT_TOPIC_OUT[20];
+
 
 // LED Pin
 const int ledPin = D7;
@@ -163,7 +165,10 @@ void callback(char* topic, byte* message, unsigned int length) {
 
   // If a message is received on the topic MQTT_TOPIC/output, you check if the message is either "on" or "off".
   // Changes the output state according to the message
-  if (String(topic) == String(MQTT_TOPIC) + "/output") {
+  Serial.print(String(MQTT_TOPIC_OUT));
+  Serial.print(" = ");
+  Serial.println(String(topic));
+  if (String(topic) == String(MQTT_TOPIC_OUT)) {
     Serial.print("Changing output to ");
     if(messageTemp == "on"){
       Serial.println("on");
@@ -194,24 +199,25 @@ void callback(char* topic, byte* message, unsigned int length) {
 
   }
 }
+
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
-    if (client.connect("ESP8266Client")) {
-      Serial.println("connected");
-      // Subscribe
-      const char tmp2[];
-      tmp2[]=MQTT_TOPIC + "/out";
-      client.subscribe(tmp2[]);
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(client.state());
-      Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000);
-    }
+      Serial.print("Attempting MQTT connection...");
+      // Attempt to connect
+      if (client.connect("ESP8266Client")) {
+        Serial.println("connected");
+        // Subscribe
+         Serial.println(cMQTT_TOPIC);
+         client.subscribe(cMQTT_TOPIC);
+        client.subscribe("esp32/out");
+      } else {
+        Serial.print("failed, rc=");
+        Serial.print(client.state());
+        Serial.println(" try again in 5 seconds");
+        // Wait 5 seconds before retrying
+        delay(5000);
+      }
   }
 }
 void setup()
@@ -226,8 +232,14 @@ void setup()
         Serial.println(">> MQTT connected");
     }
     // Subscribe
-    client.subscribe("esp32/output");
+    snprintf(cMQTT_TOPIC,sizeof cMQTT_TOPIC,"%s%s",MQTT_TOPIC, "/#");
+    snprintf(MQTT_TOPIC_OUT,sizeof MQTT_TOPIC_OUT,"%s%s",MQTT_TOPIC, "/output");
+    Serial.print("subscribe ");
+    Serial.println(cMQTT_TOPIC);
+
+    client.subscribe(cMQTT_TOPIC);
     client.setCallback(callback);
+
     // initialize digital pin LED_BUILTIN as an output.
     pinMode(LED_BUILTIN, OUTPUT);
     pinMode(ledPin, OUTPUT);
@@ -244,16 +256,18 @@ void loop()
     }
     client.loop();
 
+    ArduinoOTA.handle();                // handle over the air updates
+
     if (now - lastMsg > 1000) {
         lastMsg = now;
         // Convert the value to a char array
         char tempString[32];
         dtostrf(lastMsg, 1, 2, tempString);
-        client.publish("esp32/alive", tempString);
+
+        snprintf(MQTT_TOPIC_RSSI,sizeof MQTT_TOPIC_RSSI,"%s%s",MQTT_TOPIC, "/rssi");
         long rssi = WiFi.RSSI();
         itoa(rssi,tmp,10);
-        client.publish("esp32/rssi", tmp);
-        client.publish("esp32/time", time_value);
+        client.publish(MQTT_TOPIC_RSSI, tmp);
         if(digitalRead(LED_BUILTIN) == HIGH){
             digitalWrite(LED_BUILTIN, LOW);
         } else {
@@ -261,5 +275,4 @@ void loop()
         }
     }
 
-	ArduinoOTA.handle();                // handle over the air updates
 }
