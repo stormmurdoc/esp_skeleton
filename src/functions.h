@@ -14,3 +14,4 @@ void printDevInfos()
     Serial.print(">> WIFI SSID: ");
     Serial.println(WIFI_SSID);
 }
+

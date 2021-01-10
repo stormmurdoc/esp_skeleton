@@ -7,10 +7,10 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>
 #include <ESP8266WiFi.h>
-#include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <PubSubClient.h>
-#include <time.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 #include <macros.h>
 #include <functions.h>
 
@@ -68,6 +68,13 @@
 
 WiFiClient espClient;
 PubSubClient client(espClient);
+WiFiUDP ntpUDP;
+
+// pio lib install "arduino-libraries/NTPClient"
+// europe.pool.ntp.org
+
+NTPClient timeClient(ntpUDP,"192.168.1.1", 3600, 60000);
+
 char* clientId = ESP_HOSTNAME;
 long lastMsg = 0;
 char msg[50];
@@ -78,6 +85,7 @@ char time_value[20];
 char cMQTT_TOPIC[20];
 char MQTT_TOPIC_RSSI[20];
 char MQTT_TOPIC_OUT[20];
+char MQTT_TOPIC_CMND[20];
 
 
 // LED Pin
@@ -150,67 +158,84 @@ void setup_ota()
 }
 
 void callback(char* topic, byte* message, unsigned int length) {
-  Serial.print(">> Message arrived on topic: ");
-  Serial.print(topic);
-  Serial.print(". Message: ");
-  String messageTemp;
 
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)message[i]);
-    messageTemp += (char)message[i];
-  }
-  Serial.println();
+    Serial.print("[");
+    Serial.print(timeClient.getFormattedTime());
+    Serial.print("]");
+    Serial.print(" >> Message arrived on topic: ");
+    Serial.print(topic);
+    Serial.print(". Message: ");
 
-  // Feel free to add more if statements to control more GPIOs with MQTT
+    String messageTemp;
+    char* LED_STATE;
+    char* CMND;
 
-  // If a message is received on the topic MQTT_TOPIC/output, you check if the message is either "on" or "off".
-  // Changes the output state according to the message
-  Serial.print(String(MQTT_TOPIC_OUT));
-  Serial.print(" = ");
-  Serial.println(String(topic));
-  if (String(topic) == String(MQTT_TOPIC_OUT)) {
-    Serial.print("Changing output to ");
-    if(messageTemp == "on"){
-      Serial.println("on");
-      digitalWrite(ledPin, HIGH);
-      lastLEDState=HIGH;
+    for (int i = 0; i < length; i++) {
+      Serial.print((char)message[i]);
+      messageTemp += (char)message[i];
     }
-    else if(messageTemp == "off"){
-      Serial.println("off");
-      digitalWrite(ledPin, LOW);
-      lastLEDState=LOW;
-    }
-    else if(messageTemp == "toggle"){
-      Serial.print("toggle: last state: ");
-      Serial.println(lastLEDState);
-      if(lastLEDState == HIGH){
-          digitalWrite(ledPin, LOW);
-          lastLEDState=LOW;
+    Serial.println();
+
+    // Feel free to add more if statements to control more GPIOs with MQTT
+
+    // If a message is received on the topic MQTT_TOPIC/output, you check if the message is either "on" or "off".
+    // Changes the output state according to the message
+    Serial.print(String(topic));
+    Serial.print("=");
+    Serial.println(String(MQTT_TOPIC_CMND));
+    if (String(topic) == String(MQTT_TOPIC_CMND)) {
+      Serial.print(">> cmnd: ");
+      if(messageTemp == "set_on"){
+        Serial.println(">> set_on");
+        digitalWrite(ledPin, HIGH);
+        lastLEDState=HIGH;
+        CMND="on";
+      }
+      else if(messageTemp == "set_off"){
+        Serial.println(">> set_off");
+        digitalWrite(ledPin, LOW);
+        lastLEDState=LOW;
+        CMND="off";
+      }
+      else if(messageTemp == "toggle"){
+        Serial.print(">> toggle: last state: ");
+        Serial.println(lastLEDState);
+        if(lastLEDState == HIGH){
+            digitalWrite(ledPin, LOW);
+            lastLEDState=LOW;
+        }
+        else {
+            digitalWrite(ledPin, HIGH);
+            lastLEDState=HIGH;
+        }
+      }
+      else if(messageTemp == "reboot"){
+        Serial.print("reboot");
+        ESP.restart();
+      }
+      if(lastLEDState == 1 ) {
+          LED_STATE="on";
       }
       else {
-          digitalWrite(ledPin, HIGH);
-          lastLEDState=HIGH;
+          LED_STATE="off";
       }
-    }
-    else if(messageTemp == "reboot"){
-      Serial.print("reboot");
-      ESP.restart();
+      client.publish(MQTT_TOPIC_OUT, LED_STATE);
+
     }
 
-  }
 }
 
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
-      Serial.print("Attempting MQTT connection...");
+      Serial.print(">> Attempting MQTT connection...");
       // Attempt to connect
       if (client.connect("ESP8266Client")) {
-        Serial.println("connected");
+        Serial.println(">> connected");
         // Subscribe
-         Serial.println(cMQTT_TOPIC);
-         client.subscribe(cMQTT_TOPIC);
-        client.subscribe("esp32/out");
+        Serial.print(">> subcribing ");
+        Serial.println(cMQTT_TOPIC);
+        client.subscribe(cMQTT_TOPIC);
       } else {
         Serial.print("failed, rc=");
         Serial.print(client.state());
@@ -220,6 +245,20 @@ void reconnect() {
       }
   }
 }
+
+// Telemetrie data
+void sendTelemetrie(){
+
+        long rssi = WiFi.RSSI();
+        itoa(rssi,tmp,10);
+        client.publish(MQTT_TOPIC_RSSI, tmp);
+        if(digitalRead(LED_BUILTIN) == HIGH){
+            digitalWrite(LED_BUILTIN, LOW);
+        } else {
+            digitalWrite(LED_BUILTIN, HIGH);
+        }
+}
+
 void setup()
 {
     printDevInfos();
@@ -231,20 +270,23 @@ void setup()
     if (client.connect(clientId , ESP_HOSTNAME, MQTT_PASSWORD)) {
         Serial.println(">> MQTT connected");
     }
-    // Subscribe
+    // MQTT define topics
     snprintf(cMQTT_TOPIC,sizeof cMQTT_TOPIC,"%s%s",MQTT_TOPIC, "/#");
     snprintf(MQTT_TOPIC_OUT,sizeof MQTT_TOPIC_OUT,"%s%s",MQTT_TOPIC, "/output");
-    Serial.print("subscribe ");
-    Serial.println(cMQTT_TOPIC);
+    snprintf(MQTT_TOPIC_RSSI,sizeof MQTT_TOPIC_RSSI,"%s%s",MQTT_TOPIC, "/rssi");
+    snprintf(MQTT_TOPIC_CMND,sizeof MQTT_TOPIC_CMND,"%s%s",MQTT_TOPIC, "/cmnd");
 
+    // subscribe
     client.subscribe(cMQTT_TOPIC);
     client.setCallback(callback);
+
+    // NTP time sync
+    timeClient.begin();
 
     // initialize digital pin LED_BUILTIN as an output.
     pinMode(LED_BUILTIN, OUTPUT);
     pinMode(ledPin, OUTPUT);
 }
-
 
 /* main proc */
 void loop()
@@ -254,25 +296,16 @@ void loop()
     if (!client.connected()) {
         reconnect();
     }
+
     client.loop();
+    timeClient.update();
+    // handle over the air updates
+    ArduinoOTA.handle();
 
-    ArduinoOTA.handle();                // handle over the air updates
-
-    if (now - lastMsg > 1000) {
+    // send telemetrie data
+    if (now - lastMsg > 5000) {
         lastMsg = now;
-        // Convert the value to a char array
-        char tempString[32];
-        dtostrf(lastMsg, 1, 2, tempString);
+        sendTelemetrie();
 
-        snprintf(MQTT_TOPIC_RSSI,sizeof MQTT_TOPIC_RSSI,"%s%s",MQTT_TOPIC, "/rssi");
-        long rssi = WiFi.RSSI();
-        itoa(rssi,tmp,10);
-        client.publish(MQTT_TOPIC_RSSI, tmp);
-        if(digitalRead(LED_BUILTIN) == HIGH){
-            digitalWrite(LED_BUILTIN, LOW);
-        } else {
-            digitalWrite(LED_BUILTIN, HIGH);
-        }
     }
-
 }
