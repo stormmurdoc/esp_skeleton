@@ -1,7 +1,8 @@
-/* some debug infos */
+/*
+ * some device infos
+*/
 void printDevInfos()
 {
-   	Serial.begin(115200);
 	Serial.println(">> Booting");
 	Serial.print(">> git rev: ");
     Serial.println(GIT_REV);
@@ -17,14 +18,13 @@ void printDevInfos()
     Serial.println(NTP_SERVER);
     Serial.print(">> UPDATE INTERVAL (ms): ");
     Serial.println(UPDATE_INTERVAL);
-
-
 }
 
 /*
- * init WiFi
+ * init WiFi module
  *
 */
+
 void setup_wifi()
 {
 	WiFi.mode(WIFI_STA);
@@ -95,21 +95,73 @@ void setup_ota()
 	Serial.println(WiFi.localIP());
 }
 
-void FlashStatusLED(){
+/*
+ * Setup MQTT
+*/
+void setup_mqtt(){
+    while (!client.connected()) {
+        Serial.println(">> Connecting to MQTT...");
+        if (client.connect(ESP_HOSTNAME)) {
+            Serial.print(">> connected to ");
+            Serial.println(MQTT_SERVER);
+            client.subscribe(cMQTT_TOPIC);
+        } else {
+            Serial.print("failed with state ");
+            Serial.print(client.state());
+            delay(2000);
+        }
+    }
+}
+
+/*
+ * MQTT (re)connect function
+*/
+void reconnect() {
+ // Loop until we're reconnected
+  while (!client.connected()) {
+      Serial.println(">> Attempting MQTT connection...");
+      Serial.println(client.state());
+      /* setup mqtt_server */
+      if (client.connect(ESP_HOSTNAME)) {
+          Serial.print(">> MQTT connected to ");
+          Serial.print(MQTT_SERVER);
+          Serial.print(":");
+          Serial.println(MQTT_PORT);
+          Serial.print(">> subcribing ");
+          Serial.println(cMQTT_TOPIC);
+          client.subscribe(cMQTT_TOPIC);
+      } else {
+          // Attempt to connect
+          Serial.print("failed, rc=");
+          Serial.print(client.state());
+          Serial.println(" try again in 5 seconds");
+          // Wait 5 seconds before retrying
+          delay(5000);
+      }
+  }
+}
+
+/*
+ * Flash LED
+*/
+void FlashStatusLED(int led){
 
     int i = 0;
-    while(i<10){
-        if(digitalRead(LED_BUILTIN) == HIGH){
-            digitalWrite(LED_BUILTIN, LOW);
+    while(i<3){
+        if(digitalRead(led) == HIGH){
+            digitalWrite(led, LOW);
         } else {
-            digitalWrite(LED_BUILTIN, HIGH);
+            digitalWrite(led, HIGH);
         }
-        delay(30);
+        delay(20);
         i = i + 1;
     }
-    digitalWrite(LED_BUILTIN, LOW);
+    digitalWrite(led, LOW);
 }
-// Telemetrie data
+
+/*
+ * Publish mqtt data
+*/
 void sendTelemetrie(long now){
 
     // send telemetrie data
@@ -117,10 +169,78 @@ void sendTelemetrie(long now){
         lastMsg = now;
         long rssi = WiFi.RSSI();
         itoa(rssi,tmp,10);
+        FlashStatusLED(LED_BUILTIN);
         client.publish(MQTT_TOPIC_RSSI, tmp);
-        //client.publish(MQTT_TOPIC_RSSI, tmp);
-        int ip = WiFi.localIP();
-        itoa(ip,tmp,10);
-        client.publish(MQTT_TOPIC_IP, tmp);
     }
 }
+
+/*
+ * Publish mqtt data
+*/
+void callback(char* topic, byte* message, unsigned int length) {
+
+    Serial.print("[");
+    Serial.print(timeClient.getFormattedTime());
+    Serial.print("]");
+    Serial.print(" >> Message arrived on topic: ");
+    Serial.print(topic);
+    Serial.print(". Message: ");
+    FlashStatusLED(LED_BUILTIN);
+    String messageTemp;
+    char* LED_STATE;
+    char* CMND;
+
+    for (int i = 0; i < length; i++) {
+      Serial.print((char)message[i]);
+      messageTemp += (char)message[i];
+    }
+    Serial.println();
+    //FlashStatusLED(LED_BUILTIN);
+    // Feel free to add more if statements to control more GPIOs with MQTT
+
+    // If a message is received on the topic MQTT_TOPIC/cmnd,
+    // you check if the message is either "on" or "off".
+    // Changes the output state according to the message
+
+    if (String(topic) == String(MQTT_TOPIC_CMND)) {
+      Serial.print(">> cmnd: ");
+      if(messageTemp == "set_on"){
+        Serial.println(">> set_on");
+        digitalWrite(ledPin, HIGH);
+        lastLEDState=HIGH;
+        CMND="on";
+      }
+      else if(messageTemp == "set_off"){
+        Serial.println(">> set_off");
+        digitalWrite(ledPin, LOW);
+        lastLEDState=LOW;
+        CMND="off";
+      }
+      else if(messageTemp == "toggle"){
+        Serial.print(">> toggle: last state: ");
+        Serial.println(lastLEDState);
+        if(lastLEDState == HIGH){
+            digitalWrite(ledPin, LOW);
+            lastLEDState=LOW;
+        }
+        else {
+            digitalWrite(ledPin, HIGH);
+            lastLEDState=HIGH;
+        }
+      }
+      else if(messageTemp == "reboot"){
+        Serial.print("reboot");
+        ESP.restart();
+      }
+      if(lastLEDState == 1 ) {
+          LED_STATE="on";
+      }
+      else {
+          LED_STATE="off";
+      }
+      client.publish(MQTT_TOPIC_OUT, LED_STATE);
+    }
+
+}
+
+
