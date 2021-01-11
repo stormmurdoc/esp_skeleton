@@ -1,12 +1,28 @@
 # ESP Skeleton
 
-Skeleton project for new ESP8266 projects.
+## Scope
+
+This skeletion (template) aims to be a framework for ESP8266 Arduino projects.
+
+## Range of functions
+
+* Wifi connection
+* NTP time synchronization
+* MQTT connection
+* Internal LED flashs when MQTT messages are send/received
+* all configs are in the platform.io file
+* uses pass as password storage and other configurations
+* can create FHEM device configuration (MQTT device)
+* makefile integration
+* Over the air update & monitoring (OTA)
 
 ## Arduino Example Code
 
-This code will only blink the internal blue LED of a ESP8266 (wemos d1 or similiar).
+The sample code included is used to switch an LED on and off via FHEM using MQTT.
 
 ## Requirements
+
+### Pass
 
 This project use pass for storing user credentials.
 Take a look in bin/create_build_flags.py for further details.
@@ -15,27 +31,21 @@ The ESP_OTA_PASSWORD var is exported via bin/set_my_vars.sh
 
 Please make sure that pass is installed & configured.
 
-## First run
+### Platform IO
 
-To be able to use the OTA update, the following two entries
-in the platformio.ini must be changed.
-
-    ; Over the air settings
-    upload_protocol = espota
-    upload_port = 192.168.1.108
-
-Additionally the entry "" must be commented out:
-
-    ; initial setup via
-    upload_protocol = esptool
+Please install platformio with you os packet manager.
 
 ## How to build this project?
 
     make
 
-## How to upload this project?
+## How to upload this project via serial connection?
 
-    make upload_protocol
+    make serial
+
+## How to upload via OTA?
+
+    make ota
 
 ## How to debug the environment vars?
 
@@ -44,3 +54,17 @@ Additionally the entry "" must be commented out:
 ## How to clean up the cache?
 
     make clean
+
+## How to edit code via vim?
+
+    make edit
+
+## How to clean build environment?
+
+    make clean
+
+## How can I create a FHEM device configuration?
+
+    make fhem
+
+Note: The device config will be copied into the system clipboard automatically.
