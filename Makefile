@@ -5,8 +5,11 @@
 all:
 	platformio -f -c vim run
 
-upload:
-	source ./bin/set_my_vars.sh;platformio -f -c vim run --target upload --target monitor
+serial:
+	source ./bin/set_my_vars.sh;platformio -f -c vim run --target upload --target monitor --environment d1_serial
+
+ota:
+	source ./bin/set_my_vars.sh;platformio -f -c vim run --target upload --target monitor --environment d1_ota
 
 clean:
 	platformio -f -c vim run --target clean
@@ -25,3 +28,8 @@ erase:
 
 dump:
 	platformio -f -c vim run --target envdump
+
+fhem:
+	./bin/fhem_device.sh
+edit:
+	vim -p src/* bin/* platformio.ini

@@ -16,9 +16,10 @@
 
 set -euo pipefail
 DEVICE=$(awk -F'"' '/DESP_HOSTNAME/ {print $2}' platformio.ini)
+FHEMIODEV=$(awk -F'"' '/DFHEM_IODEV/ {print $2}' platformio.ini)
 
 OUT="defmod $DEVICE MQTT2_DEVICE $DEVICE
-attr $DEVICE IODev MQTT_Broker
+attr $DEVICE IODev $FHEMIODEV
 attr $DEVICE autocreate 1
 attr $DEVICE devicetopic $DEVICE
 attr $DEVICE event-on-change-reading .*
