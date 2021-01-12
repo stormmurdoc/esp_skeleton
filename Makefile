@@ -9,10 +9,10 @@ serial:
 	source ./bin/set_my_vars.sh;platformio -f -c vim run --target upload --target monitor --environment d1_serial
 
 ms:
-	platformio -f -c vim device monitor --environment d1_serial
+	platformio -f -c vim device monitor --environment d1_serial --filter=colorize
 
 mo:
-	platformio -f -c vim device monitor --environment d1_ota
+	platformio -f -c vim device monitor --environment d1_ota --filter=colorize
 
 ota:
 	source ./bin/set_my_vars.sh;platformio -f -c vim run --target upload --target monitor --environment d1_ota
