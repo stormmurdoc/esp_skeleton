@@ -68,3 +68,11 @@ Please install platformio with you os packet manager.
     make fhem
 
 Note: The device config will be copied into the system clipboard automatically.
+
+## How can I monitor the serial device?
+
+    make ms
+
+## How can I monitor the OTA device?
+
+    make mo
