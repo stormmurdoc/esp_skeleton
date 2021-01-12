@@ -69,10 +69,6 @@ Please install platformio with you os packet manager.
 
 Note: The device config will be copied into the system clipboard automatically.
 
-## How can I monitor the serial device?
+## How can I monitor the device?
 
-    make ms
-
-## How can I monitor the OTA device?
-
-    make mo
+    make monitor
