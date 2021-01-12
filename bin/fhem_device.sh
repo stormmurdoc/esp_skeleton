@@ -15,6 +15,7 @@
 #               a command fail
 
 set -euo pipefail
+clear
 DEVICE=$(awk -F'"' '/DESP_HOSTNAME/ {print $2}' platformio.ini)
 FHEMIODEV=$(awk -F'"' '/DFHEM_IODEV/ {print $2}' platformio.ini)
 
